@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Exchange Trading Bot Dashboard v2.0</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --info-color: #06b6d4;
+            --dark-color: #1f2937;
+            --light-color: #f8fafc;
+        }
+
+        body {
+            background-color: var(--light-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color), var(--info-color));
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .card {
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-bottom: 2px solid var(--primary-color);
+            border-radius: 12px 12px 0 0 !important;
+            font-weight: 600;
+        }
+
+        .exchange-card {
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .exchange-card.binance {
+            border-left-color: #f0b90b;
+        }
+
+        .exchange-card.gateio {
+            border-left-color: #00d4aa;
+        }
+
+        .exchange-card.okx {
+            border-left-color: #0052ff;
+        }
+
+        .exchange-card.uniswap {
+            border-left-color: #ff007a;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background-color: var(--success-color);
+        }
+
+        .status-offline {
+            background-color: var(--danger-color);
+        }
+
+        .status-warning {
+            background-color: var(--warning-color);
+        }
+
+        .metric-card {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #ffffff, #f8f9fa);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            color: #6b7280;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .trade-item {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s ease;
+        }
+
+        .trade-item:hover {
+            background: #f9fafb;
+            border-color: var(--primary-color);
+        }
+
+        .trade-buy {
+            border-left: 4px solid var(--success-color);
+        }
+
+        .trade-sell {
+            border-left: 4px solid var(--danger-color);
+        }
+
+        .scrollable-content {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+        }
+
+        .alert-custom {
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+        }
+
+        .btn-custom {
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 8px 16px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-custom:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .exchange-logo {
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+        }
+
+        .performance-indicator {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .performance-positive {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .performance-negative {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+
+        .sidebar {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .nav-pills .nav-link {
+            border-radius: 8px;
+            margin-bottom: 5px;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .nav-pills .nav-link.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: static;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-robot me-2"></i>
+                Multi-Exchange Trading Bot v2.0
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <span class="navbar-text me-3">
+                            <i class="fas fa-clock me-1"></i>
+                            <span id="currentTime"></span>
+                        </span>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-outline-light btn-sm" onclick="toggleBot()">
+                            <i class="fas fa-power-off me-1"></i>
+                            <span id="botToggleText">หยุดบอท</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-lg-3">
+                <div class="sidebar">
+                    <h5 class="mb-3">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Dashboard
+                    </h5>
+                    <ul class="nav nav-pills flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#overview" onclick="showSection('overview')">
+                                <i class="fas fa-chart-line me-2"></i>ภาพรวม
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#exchanges" onclick="showSection('exchanges')">
+                                <i class="fas fa-exchange-alt me-2"></i>Exchanges
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#trading" onclick="showSection('trading')">
+                                <i class="fas fa-coins me-2"></i>การเทรด
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#analysis" onclick="showSection('analysis')">
+                                <i class="fas fa-chart-bar me-2"></i>การวิเคราะห์
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#settings" onclick="showSection('settings')">
+                                <i class="fas fa-cog me-2"></i>ตั้งค่า
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-lg-9">
+                <!-- Overview Section -->
+                <div id="overview-section" class="section-content">
+                    <!-- Bot Status Alert -->
+                    <div id="botStatusAlert" class="alert alert-custom alert-success d-flex align-items-center mb-4">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <span id="botStatusText">บอทกำลังทำงาน</span>
+                    </div>
+
+                    <!-- Key Metrics -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card metric-card">
+                                <div class="metric-value text-primary" id="totalExchanges">0</div>
+                                <div class="metric-label">Exchanges เชื่อมต่อ</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card">
+                                <div class="metric-value text-success" id="totalProfit">$0.00</div>
+                                <div class="metric-label">กำไรรวม</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card">
+                                <div class="metric-value text-info" id="totalTrades">0</div>
+                                <div class="metric-label">การเทรดทั้งหมด</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card metric-card">
+                                <div class="metric-value text-warning" id="activeOrders">0</div>
+                                <div class="metric-label">ออเดอร์ที่เปิดอยู่</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Chart -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>
+                                ผลการดำเนินงาน
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="performanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exchanges Section -->
+                <div id="exchanges-section" class="section-content" style="display: none;">
+                    <div class="row" id="exchangesList">
+                        <!-- Exchange cards will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Trading Section -->
+                <div id="trading-section" class="section-content" style="display: none;">
+                    <div class="row">
+                        <!-- Recent Trades -->
+                        <div class="col-lg-8">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-history me-2"></i>
+                                        ประวัติการเทรดล่าสุด
+                                    </h5>
+                                    <button class="btn btn-outline-primary btn-sm" onclick="refreshTrades()">
+                                        <i class="fas fa-sync-alt me-1"></i>รีเฟรช
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="scrollable-content" id="tradesList">
+                                        <!-- Trades will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Active Orders -->
+                        <div class="col-lg-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-list-ul me-2"></i>
+                                        ออเดอร์ที่เปิดอยู่
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="scrollable-content" id="activeOrdersList">
+                                        <!-- Active orders will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analysis Section -->
+                <div id="analysis-section" class="section-content" style="display: none;">
+                    <div class="row">
+                        <!-- Market Analysis -->
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-chart-bar me-2"></i>
+                                        การวิเคราะห์ตลาด
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="marketAnalysis">
+                                        <!-- Market analysis will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Price Comparison -->
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-balance-scale me-2"></i>
+                                        เปรียบเทียบราคา
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="chart-container">
+                                        <canvas id="priceComparisonChart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Section -->
+                <div id="settings-section" class="section-content" style="display: none;">
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-cog me-2"></i>
+                                        การตั้งค่าบอท
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="botSettingsForm">
+                                        <div class="mb-3">
+                                            <label class="form-label">ช่วงเวลาตรวจสอบ (วินาที)</label>
+                                            <input type="number" class="form-control" id="checkInterval" value="30">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">จำกัดการสูญเสียรายวัน (%)</label>
+                                            <input type="number" class="form-control" id="maxDailyLoss" value="5"
+                                                step="0.1">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">ขนาดออเดอร์สูงสุด (USDT)</label>
+                                            <input type="number" class="form-control" id="maxOrderSize" value="1000">
+                                        </div>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="telegramNotifications">
+                                            <label class="form-check-label" for="telegramNotifications">
+                                                เปิดการแจ้งเตือน Telegram
+                                            </label>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary btn-custom">
+                                            <i class="fas fa-save me-1"></i>บันทึกการตั้งค่า
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-shield-alt me-2"></i>
+                                        การจัดการความเสี่ยง
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="riskMetrics">
+                                        <!-- Risk metrics will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <div class="loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">กำลังโหลด...</span>
+                        </div>
+                    </div>
+                    <p class="mt-3">กำลังประมวลผล...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let performanceChart = null;
+        let priceComparisonChart = null;
+        let isLoading = false;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function () {
+            updateCurrentTime();
+            setInterval(updateCurrentTime, 1000);
+            setInterval(updateDashboard, 5000);
+            updateDashboard();
+            initializeCharts();
+        });
+
+        // Update current time
+        function updateCurrentTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleString('th-TH');
+        }
+
+        // Show/hide sections
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.style.display = 'none';
+            });
+
+            // Remove active class from all nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+
+            // Show selected section
+            document.getElementById(sectionName + '-section').style.display = 'block';
+
+            // Add active class to clicked nav link
+            event.target.classList.add('active');
+        }
+
+        // Toggle bot on/off
+        async function toggleBot() {
+            const button = document.getElementById('botToggleText');
+            const isRunning = button.textContent === 'หยุดบอท';
+
+            try {
+                showLoading();
+                const response = await fetch('/api/bot/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: isRunning ? 'stop' : 'start' })
+                });
+
+                if (response.ok) {
+                    button.textContent = isRunning ? 'เริ่มบอท' : 'หยุดบอท';
+                    updateDashboard();
+                }
+            } catch (error) {
+                console.error('Error toggling bot:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Update dashboard data
+        async function updateDashboard() {
+            if (isLoading) return;
+
+            try {
+                // Update bot status
+                const botStatus = await fetchData('/api/bot/status');
+                updateBotStatus(botStatus);
+
+                // Update metrics
+                const metrics = await fetchData('/api/metrics');
+                updateMetrics(metrics);
+
+                // Update exchanges
+                const exchanges = await fetchData('/api/exchanges');
+                updateExchanges(exchanges);
+
+                // Update trades
+                const trades = await fetchData('/api/trades');
+                updateTrades(trades);
+
+                // Update active orders
+                const orders = await fetchData('/api/orders/active');
+                updateActiveOrders(orders);
+
+                // Update market analysis
+                const analysis = await fetchData('/api/analysis');
+                updateMarketAnalysis(analysis);
+
+                // Update charts
+                updateCharts();
+
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
+        }
+
+        // Fetch data from API
+        async function fetchData(endpoint) {
+            try {
+                const response = await fetch(endpoint);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching ${endpoint}:`, error);
+                return null;
+            }
+        }
+
+        // Update bot status
+        function updateBotStatus(status) {
+            if (!status) return;
+
+            const alert = document.getElementById('botStatusAlert');
+            const text = document.getElementById('botStatusText');
+            const toggleText = document.getElementById('botToggleText');
+
+            if (status.is_running) {
+                alert.className = 'alert alert-custom alert-success d-flex align-items-center mb-4';
+                alert.innerHTML = '<i class="fas fa-check-circle me-2"></i>';
+                text.textContent = `บอทกำลังทำงาน - โหมด: ${status.mode || 'ไม่ระบุ'}`;
+                toggleText.textContent = 'หยุดบอท';
+            } else {
+                alert.className = 'alert alert-custom alert-warning d-flex align-items-center mb-4';
+                alert.innerHTML = '<i class="fas fa-pause-circle me-2"></i>';
+                text.textContent = 'บอทหยุดทำงาน';
+                toggleText.textContent = 'เริ่มบอท';
+            }
+        }
+
+        // Update metrics
+        function updateMetrics(metrics) {
+            if (!metrics) return;
+
+            document.getElementById('totalExchanges').textContent = metrics.total_exchanges || 0;
+            document.getElementById('totalProfit').textContent = `$${(metrics.total_profit || 0).toFixed(2)}`;
+            document.getElementById('totalTrades').textContent = metrics.total_trades || 0;
+            document.getElementById('activeOrders').textContent = metrics.active_orders || 0;
+        }
+
+        // Update exchanges
+        function updateExchanges(exchanges) {
+            if (!exchanges) return;
+
+            const container = document.getElementById('exchangesList');
+            container.innerHTML = '';
+
+            exchanges.forEach(exchange => {
+                const card = createExchangeCard(exchange);
+                container.appendChild(card);
+            });
+        }
+
+        // Create exchange card
+        function createExchangeCard(exchange) {
+            const div = document.createElement('div');
+            div.className = 'col-lg-6 mb-3';
+
+            const statusClass = exchange.status === 'connected' ? 'status-online' : 'status-offline';
+            const statusText = exchange.status === 'connected' ? 'เชื่อมต่อแล้ว' : 'ไม่ได้เชื่อมต่อ';
+
+            div.innerHTML = `
+                <div class="card exchange-card ${exchange.name}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <span class="status-indicator ${statusClass}"></span>
+                            ${exchange.display_name}
+                        </h6>
+                        <span class="badge bg-${exchange.type === 'cex' ? 'primary' : 'info'}">${exchange.type.toUpperCase()}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">สถานะ</small>
+                                <div>${statusText}</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">คู่เทรด</small>
+                                <div>${exchange.trading_pairs?.length || 0} คู่</div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <small class="text-muted">การเทรดวันนี้</small>
+                                <div>${exchange.daily_trades || 0}</div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">กำไร/ขาดทุน</small>
+                                <div class="performance-indicator ${exchange.daily_pnl >= 0 ? 'performance-positive' : 'performance-negative'}">
+                                    ${exchange.daily_pnl >= 0 ? '+' : ''}$${(exchange.daily_pnl || 0).toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            return div;
+        }
+
+        // Update trades
+        function updateTrades(trades) {
+            if (!trades) return;
+
+            const container = document.getElementById('tradesList');
+            container.innerHTML = '';
+
+            if (trades.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-4">ยังไม่มีการเทรด</div>';
+                return;
+            }
+
+            trades.slice(0, 20).forEach(trade => {
+                const div = document.createElement('div');
+                div.className = `trade-item trade-${trade.side}`;
+
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${trade.symbol}</strong>
+                            <span class="badge bg-${trade.side === 'buy' ? 'success' : 'danger'} ms-2">
+                                ${trade.side.toUpperCase()}
+                            </span>
+                        </div>
+                        <div class="text-end">
+                            <div><strong>$${trade.price}</strong></div>
+                            <small class="text-muted">${trade.amount} ${trade.symbol.split('/')[0]}</small>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-2">
+                        <small class="text-muted">${trade.exchange}</small>
+                        <small class="text-muted">${new Date(trade.timestamp).toLocaleString('th-TH')}</small>
+                    </div>
+                `;
+
+                container.appendChild(div);
+            });
+        }
+
+        // Update active orders
+        function updateActiveOrders(orders) {
+            if (!orders) return;
+
+            const container = document.getElementById('activeOrdersList');
+            container.innerHTML = '';
+
+            if (orders.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-4">ไม่มีออเดอร์ที่เปิดอยู่</div>';
+                return;
+            }
+
+            orders.forEach(order => {
+                const div = document.createElement('div');
+                div.className = `trade-item trade-${order.side}`;
+
+                div.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${order.symbol}</strong>
+                            <span class="badge bg-${order.side === 'buy' ? 'success' : 'danger'} ms-2">
+                                ${order.side.toUpperCase()}
+                            </span>
+                        </div>
+                        <div class="text-end">
+                            <div><strong>$${order.price}</strong></div>
+                            <small class="text-muted">${order.amount}</small>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-2">
+                        <small class="text-muted">${order.exchange}</small>
+                        <button class="btn btn-outline-danger btn-sm" onclick="cancelOrder('${order.id}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+
+                container.appendChild(div);
+            });
+        }
+
+        // Update market analysis
+        function updateMarketAnalysis(analysis) {
+            if (!analysis) return;
+
+            const container = document.getElementById('marketAnalysis');
+            container.innerHTML = '';
+
+            Object.entries(analysis).forEach(([exchange, data]) => {
+                if (data.error) return;
+
+                const div = document.createElement('div');
+                div.className = 'mb-3 p-3 border rounded';
+
+                div.innerHTML = `
+                    <h6>${exchange.toUpperCase()}</h6>
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">เทรนด์</small>
+                            <div class="badge bg-${getTrendColor(data.trend)}">${data.trend}</div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">RSI</small>
+                            <div>${data.rsi?.toFixed(1) || 'N/A'}</div>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-6">
+                            <small class="text-muted">ความผันผวน</small>
+                            <div>${(data.volatility * 100)?.toFixed(2) || 'N/A'}%</div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">สภาพตลาด</small>
+                            <div>${data.market_condition || 'N/A'}</div>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(div);
+            });
+        }
+
+        // Get trend color
+        function getTrendColor(trend) {
+            switch (trend) {
+                case 'bullish': return 'success';
+                case 'bearish': return 'danger';
+                case 'sideways': return 'warning';
+                default: return 'secondary';
+            }
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            // Performance Chart
+            const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(performanceCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'กำไร/ขาดทุน ($)',
+                        data: [],
+                        borderColor: 'rgb(37, 99, 235)',
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Price Comparison Chart
+            const priceCtx = document.getElementById('priceComparisonChart').getContext('2d');
+            priceComparisonChart = new Chart(priceCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'ราคา BTC/USDT',
+                        data: [],
+                        backgroundColor: [
+                            'rgba(240, 185, 11, 0.8)',
+                            'rgba(0, 212, 170, 0.8)',
+                            'rgba(0, 82, 255, 0.8)',
+                            'rgba(255, 0, 122, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Update charts
+        async function updateCharts() {
+            try {
+                // Update performance chart
+                const performanceData = await fetchData('/api/charts/performance');
+                if (performanceData && performanceChart) {
+                    performanceChart.data.labels = performanceData.labels;
+                    performanceChart.data.datasets[0].data = performanceData.data;
+                    performanceChart.update();
+                }
+
+                // Update price comparison chart
+                const priceData = await fetchData('/api/charts/prices');
+                if (priceData && priceComparisonChart) {
+                    priceComparisonChart.data.labels = priceData.labels;
+                    priceComparisonChart.data.datasets[0].data = priceData.data;
+                    priceComparisonChart.update();
+                }
+            } catch (error) {
+                console.error('Error updating charts:', error);
+            }
+        }
+
+        // Cancel order
+        async function cancelOrder(orderId) {
+            if (!confirm('คุณต้องการยกเลิกออเดอร์นี้หรือไม่?')) return;
+
+            try {
+                showLoading();
+                const response = await fetch(`/api/orders/${orderId}/cancel`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    updateDashboard();
+                }
+            } catch (error) {
+                console.error('Error canceling order:', error);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Refresh trades
+        function refreshTrades() {
+            updateDashboard();
+        }
+
+        // Show loading modal
+        function showLoading() {
+            isLoading = true;
+            const modal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            modal.show();
+        }
+
+        // Hide loading modal
+        function hideLoading() {
+            isLoading = false;
+            const modal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+            if (modal) modal.hide();
+        }
+
+        // Handle settings form
+        document.getElementById('botSettingsForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const settings = {
+                check_interval: document.getElementById('checkInterval').value,
+                max_daily_loss: document.getElementById('maxDailyLoss').value,
+                max_order_size: document.getElementById('maxOrderSize').value,
+                telegram_notifications: document.getElementById('telegramNotifications').checked
+            };
+
+            try {
+                showLoading();
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+
+                if (response.ok) {
+                    alert('บันทึกการตั้งค่าเรียบร้อย');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('เกิดข้อผิดพลาดในการบันทึกการตั้งค่า');
+            } finally {
+                hideLoading();
+            }
+        });
+    </script>
+</body>
+
+</html>

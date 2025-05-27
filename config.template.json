@@ -1,0 +1,115 @@
+{
+  "exchanges": {
+    "binance": {
+      "enabled": false,
+      "type": "cex",
+      "api_key": "${BINANCE_API_KEY}",
+      "secret": "${BINANCE_SECRET}",
+      "sandbox": true,
+      "trading_pairs": ["BTC/USDT", "ETH/USDT"],
+      "min_order_amount": 10.0,
+      "max_order_amount": 1000.0,
+      "fee_rate": 0.001
+    },
+    "gateio": {
+      "enabled": false,
+      "type": "cex",
+      "api_key": "${GATEIO_API_KEY}",
+      "secret": "${GATEIO_SECRET}",
+      "sandbox": true,
+      "trading_pairs": ["BTC/USDT", "ETH/USDT"],
+      "min_order_amount": 10.0,
+      "max_order_amount": 1000.0,
+      "fee_rate": 0.002
+    },
+    "okx": {
+      "enabled": false,
+      "type": "cex",
+      "api_key": "${OKX_API_KEY}",
+      "secret": "${OKX_SECRET}",
+      "passphrase": "${OKX_PASSPHRASE}",
+      "sandbox": true,
+      "trading_pairs": ["BTC/USDT", "ETH/USDT"],
+      "min_order_amount": 10.0,
+      "max_order_amount": 1000.0,
+      "fee_rate": 0.001
+    },
+    "kucoin": {
+      "enabled": false,
+      "type": "cex",
+      "api_key": "${KUCOIN_API_KEY}",
+      "secret": "${KUCOIN_SECRET}",
+      "passphrase": "${KUCOIN_PASSPHRASE}",
+      "sandbox": true,
+      "trading_pairs": ["BTC/USDT", "ETH/USDT"],
+      "min_order_amount": 10.0,
+      "max_order_amount": 1000.0,
+      "fee_rate": 0.001
+    },
+    "uniswap_v3": {
+      "enabled": false,
+      "type": "dex",
+      "network": "ethereum",
+      "rpc_url": "${ETHEREUM_RPC_URL}",
+      "private_key": "${ETHEREUM_PRIVATE_KEY}",
+      "wallet_address": "${ETHEREUM_WALLET_ADDRESS}",
+      "trading_pairs": ["WETH/USDC"],
+      "slippage": 0.005,
+      "gas_limit": 300000,
+      "max_gas_price": 50
+    },
+    "pancakeswap": {
+      "enabled": false,
+      "type": "dex",
+      "network": "bsc",
+      "rpc_url": "${BSC_RPC_URL}",
+      "private_key": "${BSC_PRIVATE_KEY}",
+      "wallet_address": "${BSC_WALLET_ADDRESS}",
+      "trading_pairs": ["WBNB/USDT"],
+      "slippage": 0.005,
+      "gas_limit": 300000,
+      "max_gas_price": 5
+    }
+  },
+  "trading_strategy": {
+    "strategy_type": "market_making",
+    "timeframe": "1m",
+    "indicators": ["sma", "ema", "rsi", "macd"],
+    "risk_management": {
+      "max_position_size": 0.1,
+      "stop_loss": 0.02,
+      "take_profit": 0.03,
+      "max_daily_loss": 0.05
+    }
+  },
+  "bot_settings": {
+    "check_interval": 30,
+    "log_level": "INFO",
+    "log_file": "temp/trading_bot.log",
+    "telegram_notifications": {
+      "enabled": false,
+      "bot_token": "${TELEGRAM_BOT_TOKEN}",
+      "chat_id": "${TELEGRAM_CHAT_ID}"
+    },
+    "database": {
+      "enabled": true,
+      "type": "sqlite",
+      "path": "temp/trading_data.db"
+    },
+    "web_dashboard": {
+      "enabled": true,
+      "host": "0.0.0.0",
+      "port": 5001
+    }
+  },
+  "scanner_settings": {
+    "timeframes": ["1h", "4h", "1d"],
+    "min_volume_24h": 100000,
+    "min_signal_strength": 60,
+    "macd_settings": {
+      "fast": 12,
+      "slow": 26,
+      "signal": 9
+    }
+  }
+}

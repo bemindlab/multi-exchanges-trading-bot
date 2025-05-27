@@ -1,0 +1,34 @@
+# CEX API Keys
+BINANCE_API_KEY=your_binance_api_key_here
+BINANCE_SECRET=your_binance_secret_here
+BINANCE_SANDBOX=true
+
+GATEIO_API_KEY=your_gateio_api_key_here
+GATEIO_SECRET=your_gateio_secret_here
+GATEIO_SANDBOX=true
+
+OKX_API_KEY=your_okx_api_key_here
+OKX_SECRET=your_okx_secret_here
+OKX_PASSPHRASE=your_okx_passphrase_here
+OKX_SANDBOX=true
+
+# DEX Settings
+ETHEREUM_RPC_URL=https://mainnet.infura.io/v3/YOUR_PROJECT_ID
+BSC_RPC_URL=https://bsc-dataseed.binance.org/
+POLYGON_RPC_URL=https://polygon-rpc.com/
+
+# Wallet Private Keys (ใช้สำหรับ DEX เท่านั้น)
+ETHEREUM_PRIVATE_KEY=your_ethereum_private_key_here
+BSC_PRIVATE_KEY=your_bsc_private_key_here
+POLYGON_PRIVATE_KEY=your_polygon_private_key_here
+
+# Telegram Bot (สำหรับการแจ้งเตือน)
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+TELEGRAM_CHAT_ID=your_telegram_chat_id_here
+
+# Database
+DATABASE_URL=sqlite:///trading_data.db
+
+# General Settings
+LOG_LEVEL=INFO
+ENVIRONMENT=development 

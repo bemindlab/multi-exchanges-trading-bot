@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This directory contains comprehensive test suites for the Multi-Exchange Trading Bot project. The tests are organized to cover all major components and ensure code quality and reliability.
+This directory contains comprehensive test suites for the Multi-Exchange Trading Bot project. The tests are organized following best practices to ensure code quality, reliability, and maintainability.
 
 ## 🏗️ Test Structure
 
@@ -10,14 +10,31 @@ This directory contains comprehensive test suites for the Multi-Exchange Trading
 tests/
 ├── __init__.py                 # Test package initialization
 ├── conftest.py                 # Shared pytest fixtures
-├── test_config_manager.py      # Config management tests
-├── test_exchange_manager.py    # Exchange management tests
-├── test_market_analyzer.py     # Market analysis tests
-├── test_crypto_scanner.py      # Crypto scanner tests
-├── test_macd_bot.py           # MACD bot tests
-├── test_multi_exchange_bot.py  # Multi-exchange bot tests
-├── test_risk_manager.py       # Risk management tests
-├── test_monitor.py            # Monitoring tests
+├── unit/                       # Unit tests
+│   ├── __init__.py
+│   ├── test_core/             # Core components
+│   │   ├── __init__.py
+│   │   ├── test_config_manager.py
+│   │   ├── test_exchange_manager.py
+│   │   ├── test_market_analyzer.py
+│   │   └── test_risk_manager.py
+│   ├── test_strategies/       # Trading strategies
+│   │   ├── __init__.py
+│   │   ├── test_macd_bot.py
+│   │   └── test_multi_exchange_bot.py
+│   └── test_utils/            # Utilities
+│       ├── __init__.py
+│       ├── test_crypto_scanner.py
+│       └── test_monitor.py
+├── integration/               # Integration tests
+│   ├── __init__.py
+│   ├── test_hummingbot_manager.py
+│   ├── test_hummingbot_simple.py
+│   └── test_mqtt_client.py
+├── performance/               # Performance tests
+│   └── __init__.py
+├── security/                  # Security tests
+│   └── __init__.py
 └── README.md                  # This file
 ```
 
@@ -40,14 +57,19 @@ pytest
 # Run with verbose output
 pytest -v
 
-# Run specific test file
-pytest tests/test_config_manager.py
+# Run specific test category
+pytest tests/unit/
+pytest tests/integration/
+pytest tests/performance/
+
+# Run specific test module
+pytest tests/unit/test_core/test_config_manager.py
 
 # Run specific test class
-pytest tests/test_config_manager.py::TestConfigManager
+pytest tests/unit/test_core/test_config_manager.py::TestConfigManager
 
 # Run specific test method
-pytest tests/test_config_manager.py::TestConfigManager::test_init_default_paths
+pytest tests/unit/test_core/test_config_manager.py::TestConfigManager::test_init_default_paths
 ```
 
 ### Coverage Reports
@@ -67,10 +89,19 @@ open htmlcov/index.html
 
 ```bash
 # Run only unit tests
-pytest -m unit
+pytest tests/unit/
 
 # Run only integration tests
-pytest -m integration
+pytest tests/integration/
+
+# Run core component tests
+pytest tests/unit/test_core/
+
+# Run strategy tests
+pytest tests/unit/test_strategies/
+
+# Run utility tests
+pytest tests/unit/test_utils/
 
 # Skip slow tests
 pytest -m "not slow"
@@ -81,23 +112,47 @@ pytest -m asyncio
 
 ## 🧪 Test Types
 
-### Unit Tests
-- Test individual functions and methods
-- Use mocks for external dependencies
-- Fast execution
-- High coverage
+### Unit Tests (`unit/`)
+- Test individual functions and methods in isolation
+- Mock all external dependencies
+- Fast execution (< 0.1s per test)
+- High code coverage target (> 90%)
+- Organized by module:
+  - `test_core/`: Core business logic components
+  - `test_strategies/`: Trading strategy implementations
+  - `test_utils/`: Utility functions and helpers
 
-### Integration Tests
-- Test component interactions
-- Use real or realistic data
-- May be slower
-- Test workflows
+### Integration Tests (`integration/`)
+- Test component interactions and workflows
+- Use real or realistic mock data
+- May interact with external services (mocked)
+- Slower execution acceptable (< 5s per test)
+- Focus on:
+  - API integrations
+  - Database operations
+  - Message queue interactions
+  - End-to-end workflows
 
-### Async Tests
-- Test asynchronous functions
-- Use `pytest-asyncio`
-- Mock async dependencies
-- Test concurrent operations
+### Performance Tests (`performance/`)
+- Measure execution time and resource usage
+- Test system under load
+- Identify bottlenecks
+- Benchmark critical operations
+- Examples:
+  - Order processing throughput
+  - Market data analysis speed
+  - Memory usage patterns
+
+### Security Tests (`security/`)
+- Verify security controls
+- Test authentication/authorization
+- Check for vulnerabilities
+- Validate input sanitization
+- Examples:
+  - API key handling
+  - Permission checks
+  - SQL injection prevention
+  - XSS protection
 
 ## 📊 Test Fixtures
 

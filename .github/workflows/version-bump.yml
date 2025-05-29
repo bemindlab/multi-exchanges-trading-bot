@@ -1,0 +1,193 @@
+name: Version Bump
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: "Type of version bump"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+      custom_version:
+        description: "Custom version (optional, overrides version_type)"
+        required: false
+        type: string
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install packaging
+
+      - name: Get current version
+        id: current-version
+        run: |
+          CURRENT_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "current-version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+
+      - name: Calculate new version
+        id: new-version
+        run: |
+          CURRENT_VERSION="${{ steps.current-version.outputs.current-version }}"
+
+          if [[ -n "${{ github.event.inputs.custom_version }}" ]]; then
+            NEW_VERSION="${{ github.event.inputs.custom_version }}"
+            echo "Using custom version: $NEW_VERSION"
+          else
+            VERSION_TYPE="${{ github.event.inputs.version_type }}"
+            
+            # Parse current version
+            IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+            MAJOR=${VERSION_PARTS[0]}
+            MINOR=${VERSION_PARTS[1]}
+            PATCH=${VERSION_PARTS[2]}
+            
+            # Bump version based on type
+            case $VERSION_TYPE in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+            
+            NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+            echo "Bumping $VERSION_TYPE version: $CURRENT_VERSION -> $NEW_VERSION"
+          fi
+
+          # Validate version format
+          if [[ ! $NEW_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Invalid version format: $NEW_VERSION"
+            exit 1
+          fi
+
+          echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update version in files
+        run: |
+          NEW_VERSION="${{ steps.new-version.outputs.new-version }}"
+
+          # Update pyproject.toml
+          sed -i "s/^version = .*/version = \"$NEW_VERSION\"/" pyproject.toml
+
+          # Update setup.py
+          sed -i "s/version=\"[^\"]*\"/version=\"$NEW_VERSION\"/" setup.py
+
+          echo "Updated version to $NEW_VERSION in:"
+          echo "- pyproject.toml"
+          echo "- setup.py"
+
+      - name: Update changelog
+        run: |
+          NEW_VERSION="${{ steps.new-version.outputs.new-version }}"
+          CURRENT_DATE=$(date +%Y-%m-%d)
+
+          # Create new changelog entry
+          echo "# Changelog" > temp_changelog.md
+          echo "" >> temp_changelog.md
+          echo "All notable changes to this project will be documented in this file." >> temp_changelog.md
+          echo "" >> temp_changelog.md
+          echo "The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)," >> temp_changelog.md
+          echo "and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)." >> temp_changelog.md
+          echo "" >> temp_changelog.md
+          echo "## [Unreleased]" >> temp_changelog.md
+          echo "" >> temp_changelog.md
+          echo "### Added" >> temp_changelog.md
+          echo "- Template-based configuration system" >> temp_changelog.md
+          echo "- Enhanced security features" >> temp_changelog.md
+          echo "- Community-ready documentation" >> temp_changelog.md
+          echo "" >> temp_changelog.md
+          echo "## [$NEW_VERSION] - $CURRENT_DATE" >> temp_changelog.md
+          echo "" >> temp_changelog.md
+          echo "### Added" >> temp_changelog.md
+          echo "- Version bump to $NEW_VERSION" >> temp_changelog.md
+          echo "" >> temp_changelog.md
+          echo "### Changed" >> temp_changelog.md
+          echo "- Updated version across all configuration files" >> temp_changelog.md
+          echo "" >> temp_changelog.md
+
+          # Append rest of changelog (skip first few lines)
+          tail -n +15 CHANGELOG.md >> temp_changelog.md
+
+          # Replace original changelog
+          mv temp_changelog.md CHANGELOG.md
+
+          echo "Updated CHANGELOG.md with version $NEW_VERSION"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: bump version to ${{ steps.new-version.outputs.new-version }}"
+          title: "chore: bump version to ${{ steps.new-version.outputs.new-version }}"
+          body: |
+            ## Version Bump
+
+            This PR bumps the version from `${{ steps.current-version.outputs.current-version }}` to `${{ steps.new-version.outputs.new-version }}`.
+
+            ### Changes
+            - Updated version in `pyproject.toml`
+            - Updated version in `setup.py`
+            - Updated `CHANGELOG.md` with new version entry
+
+            ### Type of Change
+            - Version bump: `${{ github.event.inputs.version_type || 'custom' }}`
+
+            ### Checklist
+            - [x] Version updated in all configuration files
+            - [x] Changelog updated
+            - [ ] Ready for release
+
+            ---
+
+            This PR was automatically created by the Version Bump workflow.
+          branch: version-bump-${{ steps.new-version.outputs.new-version }}
+          delete-branch: true
+          draft: false
+
+      - name: Summary
+        run: |
+          echo "## Version Bump Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Previous Version:** ${{ steps.current-version.outputs.current-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **New Version:** ${{ steps.new-version.outputs.new-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Bump Type:** ${{ github.event.inputs.version_type || 'custom' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Files Updated" >> $GITHUB_STEP_SUMMARY
+          echo "- pyproject.toml" >> $GITHUB_STEP_SUMMARY
+          echo "- setup.py" >> $GITHUB_STEP_SUMMARY
+          echo "- CHANGELOG.md" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "A pull request has been created for review." >> $GITHUB_STEP_SUMMARY

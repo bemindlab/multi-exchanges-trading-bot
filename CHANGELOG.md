@@ -12,6 +12,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced security features
 - Community-ready documentation
 
+## [2.1.0] - 2025-05-29
+
+### Added
+- **Hummingbot Integration**: Full support for Hummingbot trading strategies and connectors
+  - Native Hummingbot strategy execution
+  - Seamless integration with Hummingbot's market making and arbitrage strategies
+  - Support for Hummingbot's configuration management
+- **Web Dashboard**: Modern web-based dashboard for monitoring and control
+  - Real-time trading performance visualization
+  - Interactive charts and analytics
+  - Portfolio management interface
+  - Strategy configuration through web UI
+  - Live market data and order book visualization
+- **Make Commands**: Comprehensive Makefile for development and deployment
+  - `make install` - Install dependencies and setup environment
+  - `make test` - Run test suite with coverage
+  - `make lint` - Code quality checks and formatting
+  - `make build` - Build Docker containers
+  - `make deploy` - Deploy to production environment
+  - `make clean` - Clean build artifacts and cache
+  - `make docs` - Generate documentation
+  - `make dev` - Start development environment
+
+### Enhanced
+- Improved Docker configuration for better development workflow
+- Enhanced monitoring capabilities with Grafana dashboards
+- Better error handling and logging across all components
+- Optimized performance for high-frequency trading scenarios
+
+### Fixed
+- Memory optimization for long-running processes
+- API rate limiting improvements
+- Configuration validation edge cases
+
 ## [2.0.0] - 2024-01-XX
 
 ### Added
@@ -52,11 +86,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.x.x] - Legacy Versions
 
 ### Note
-Version 1.x.x and earlier are no longer supported. Please upgrade to v2.0.0 or later.
+Version 1.x.x and earlier are no longer supported. Please upgrade to v2.1.0 or later.
 
 ---
 
 ## Release Notes
+
+### v2.1.0 - Enhanced Integration Release
+
+This release focuses on improving integration capabilities and developer experience with Hummingbot support, web dashboard, and comprehensive make commands.
+
+#### New Features Highlights
+
+- **🤖 Hummingbot Integration**: Native support for Hummingbot strategies and connectors
+- **📊 Web Dashboard**: Modern React-based dashboard for real-time monitoring
+- **🛠️ Make Commands**: Streamlined development workflow with comprehensive Makefile
+- **🐳 Enhanced Docker**: Improved containerization for development and production
+- **📈 Advanced Monitoring**: Enhanced Grafana dashboards and metrics
+
+#### Quick Start with v2.1.0
+
+1. **Clone and Setup**
+   ```bash
+   git clone <repository-url>
+   cd multi-exchanges-trading-bot
+   make install
+   ```
+
+2. **Configure Environment**
+   ```bash
+   cp env.example .env
+   # Edit .env with your API keys
+   ```
+
+3. **Start Development Environment**
+   ```bash
+   make dev
+   ```
+
+4. **Access Web Dashboard**
+   - Open http://localhost:3000 for the web dashboard
+   - Open http://localhost:3001 for Grafana monitoring
 
 ### v2.0.0 - Major Release
 

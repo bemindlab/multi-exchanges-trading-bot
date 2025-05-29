@@ -1,0 +1,426 @@
+version: "3.8"
+
+services:
+  # Test Runner
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: test-runner
+    environment:
+      - ENVIRONMENT=test
+      - DEBUG=1
+      - PYTHONPATH=/app
+      - POSTGRES_HOST=postgres-test
+      - REDIS_HOST=redis-test
+      - MQTT_HOST=mqtt-test
+      - TEST_DATABASE_URL=postgresql://test_user:test_pass@postgres-test:5432/test_db
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./config:/app/config
+      - ./test-results:/app/test-results
+      - ./.env.test:/app/.env
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+      mqtt-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    command:
+      [
+        "pytest",
+        "tests/",
+        "-v",
+        "--cov=src",
+        "--cov-report=html",
+        "--cov-report=xml",
+        "--junitxml=test-results/junit.xml",
+      ]
+
+  # Unit Test Runner
+  unit-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: unit-tests
+    environment:
+      - ENVIRONMENT=test
+      - PYTHONPATH=/app
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./test-results:/app/test-results
+    networks:
+      - test-network
+    command:
+      [
+        "pytest",
+        "tests/unit/",
+        "-v",
+        "-m",
+        "unit",
+        "--cov=src",
+        "--cov-report=xml",
+        "--junitxml=test-results/unit-junit.xml",
+      ]
+    profiles:
+      - unit
+
+  # Integration Test Runner
+  integration-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: integration-tests
+    environment:
+      - ENVIRONMENT=test
+      - PYTHONPATH=/app
+      - POSTGRES_HOST=postgres-test
+      - REDIS_HOST=redis-test
+      - MQTT_HOST=mqtt-test
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./config:/app/config
+      - ./test-results:/app/test-results
+      - ./.env.test:/app/.env
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+      mqtt-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    command:
+      [
+        "pytest",
+        "tests/integration/",
+        "-v",
+        "-m",
+        "integration",
+        "--junitxml=test-results/integration-junit.xml",
+      ]
+    profiles:
+      - integration
+
+  # Performance Test Runner
+  performance-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: performance-tests
+    environment:
+      - ENVIRONMENT=test
+      - PYTHONPATH=/app
+      - POSTGRES_HOST=postgres-test
+      - REDIS_HOST=redis-test
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./test-results:/app/test-results
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    command:
+      [
+        "pytest",
+        "tests/performance/",
+        "-v",
+        "-m",
+        "performance",
+        "--benchmark-only",
+        "--benchmark-json=test-results/benchmark.json",
+      ]
+    profiles:
+      - performance
+
+  # Security Test Runner
+  security-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: security-tests
+    environment:
+      - ENVIRONMENT=test
+      - PYTHONPATH=/app
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./test-results:/app/test-results
+    networks:
+      - test-network
+    command:
+      [
+        "pytest",
+        "tests/security/",
+        "-v",
+        "-m",
+        "security",
+        "--junitxml=test-results/security-junit.xml",
+      ]
+    profiles:
+      - security
+
+  # Test PostgreSQL Database
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: postgres-test
+    environment:
+      POSTGRES_DB: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./scripts/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  # Test Redis Cache
+  redis-test:
+    image: redis:7-alpine
+    container_name: redis-test
+    command: redis-server --appendonly no --save ""
+    ports:
+      - "6380:6379"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    tmpfs:
+      - /data
+
+  # Test MQTT Broker
+  mqtt-test:
+    image: eclipse-mosquitto:2.0
+    container_name: mqtt-test
+    volumes:
+      - ./config/mosquitto/mosquitto.test.conf:/mosquitto/config/mosquitto.conf
+    ports:
+      - "1884:1883"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -t test -m test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # n8n Test Instance
+  n8n-test:
+    image: n8nio/n8n:latest
+    container_name: n8n-test
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5679
+      - GENERIC_TIMEZONE=UTC
+      - DB_TYPE=sqlite
+      - DB_SQLITE_DATABASE=/tmp/n8n.sqlite
+      - N8N_ENCRYPTION_KEY=test_encryption_key
+      - N8N_USER_MANAGEMENT_DISABLED=true
+      - N8N_DIAGNOSTICS_ENABLED=false
+      - N8N_VERSION_NOTIFICATIONS_ENABLED=false
+      - N8N_TEMPLATES_ENABLED=false
+      - N8N_PUBLIC_API_DISABLED=false
+      - N8N_METRICS=false
+      - N8N_LOG_LEVEL=debug
+    ports:
+      - "5679:5678"
+    networks:
+      - test-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5678/healthz",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    tmpfs:
+      - /tmp
+    profiles:
+      - n8n
+
+  # Mock Exchange API Server
+  mock-exchange:
+    build:
+      context: ./tests/mocks
+      dockerfile: Dockerfile.mock-exchange
+    container_name: mock-exchange
+    environment:
+      - MOCK_MODE=test
+    ports:
+      - "8888:8888"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Test Data Generator
+  test-data-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: test-data-generator
+    environment:
+      - ENVIRONMENT=test
+      - PYTHONPATH=/app
+      - POSTGRES_HOST=postgres-test
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./test-data:/app/test-data
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    command: ["python", "-m", "tests.utils.generate_test_data"]
+    profiles:
+      - data-gen
+
+  # Code Quality Checker
+  code-quality:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: code-quality
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./test-results:/app/test-results
+    networks:
+      - test-network
+    command: >
+      sh -c "
+        echo 'Running code quality checks...' &&
+        black src/ tests/ --check --diff > test-results/black-report.txt 2>&1 || true &&
+        isort src/ tests/ --check-only --diff > test-results/isort-report.txt 2>&1 || true &&
+        flake8 src/ tests/ --output-file=test-results/flake8-report.txt || true &&
+        mypy src/ --html-report test-results/mypy-report || true &&
+        bandit -r src/ -f json -o test-results/bandit-report.json || true &&
+        safety check --json --output test-results/safety-report.json || true &&
+        echo 'Code quality checks completed'
+      "
+    profiles:
+      - quality
+
+  # Test Report Generator
+  test-reporter:
+    image: alpine:latest
+    container_name: test-reporter
+    volumes:
+      - ./test-results:/test-results
+      - ./scripts/generate-test-report.sh:/generate-report.sh
+    command: ["sh", "/generate-report.sh"]
+    profiles:
+      - report
+
+  # Load Test Runner
+  load-tests:
+    image: locustio/locust:latest
+    container_name: load-tests
+    volumes:
+      - ./tests/load:/mnt/locust
+    ports:
+      - "8089:8089"
+    environment:
+      - LOCUST_HOST=http://trading-bot:8000
+    networks:
+      - test-network
+    command:
+      [
+        "locust",
+        "-f",
+        "/mnt/locust/locustfile.py",
+        "--host=http://mock-exchange:8888",
+      ]
+    profiles:
+      - load
+
+  # n8n Workflow Test Runner
+  n8n-workflow-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: n8n-workflow-tests
+    environment:
+      - ENVIRONMENT=test
+      - PYTHONPATH=/app
+      - N8N_HOST=n8n-test
+      - N8N_PORT=5678
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./test-results:/app/test-results
+      - ./config/n8n/workflows:/app/workflows
+    depends_on:
+      n8n-test:
+        condition: service_healthy
+    networks:
+      - test-network
+    command:
+      [
+        "pytest",
+        "tests/workflows/",
+        "-v",
+        "-m",
+        "workflow",
+        "--junitxml=test-results/workflow-junit.xml",
+      ]
+    profiles:
+      - workflow
+
+volumes:
+  postgres_test_data:
+    driver: local
+
+networks:
+  test-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16

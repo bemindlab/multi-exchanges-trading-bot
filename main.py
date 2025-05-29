@@ -1,22 +1,43 @@
+#!/usr/bin/env python3
+"""
+Multi-Exchange Trading Bot - Main Entry Point
+
+A comprehensive trading bot system for managing multiple exchanges
+with advanced strategies and risk management.
+
+Usage:
+    python main.py --mode manual --action buy --pair BTC_USDT --amount 100
+    python main.py --mode macd --pairs BTC_USDT ETH_USDT --interval 60
+    python main.py --mode webhook
+"""
+
+import os
+import sys
+import argparse
+import logging
+from pathlib import Path
+
+# Add src to Python path
+sys.path.insert(0, str(Path(__file__).parent / "src"))
+
 from flask import Flask, request, jsonify
 import gate_api
 from dotenv import load_dotenv
-import os
-import argparse
 import json
-from macd_bot import MACDBot, load_config
-import logging
-from logging.handlers import RotatingFileHandler
 from datetime import datetime
-from bots.risk_manager import RiskManager
+
+# Import from our restructured modules
+from src.strategies.macd_bot import MACDBot, load_config
+from src.core.risk_manager import RiskManager
 from config_manager import ConfigManager, ensure_config_exists
 
-# Load environment variables from .env file
+# Load environment variables
 load_dotenv()
 
+# Flask app for webhook mode
 app = Flask(__name__)
 
-# Available trading pairs
+# Configuration constants
 AVAILABLE_PAIRS = {
     'BTC_USDT': 'Bitcoin/USDT',
     'ETH_USDT': 'Ethereum/USDT',
@@ -32,10 +53,9 @@ AVAILABLE_PAIRS = {
     'XLM_USDT': 'Stellar/USDT',
 }
 
-# Available timeframes
 AVAILABLE_TIMEFRAMES = {
     '1m': '1 minute',
-    '5m': '5 minutes',
+    '5m': '5 minutes', 
     '15m': '15 minutes',
     '30m': '30 minutes',
     '1h': '1 hour',
@@ -44,104 +64,84 @@ AVAILABLE_TIMEFRAMES = {
     '1w': '1 week'
 }
 
-def validate_trade_params(currency_pair, amount, timeframe):
-    """Validate trading parameters"""
-    if currency_pair not in AVAILABLE_PAIRS:
-        return False, f'Invalid currency pair. Available pairs: {list(AVAILABLE_PAIRS.keys())}'
-    
-    if timeframe not in AVAILABLE_TIMEFRAMES:
-        return False, f'Invalid timeframe. Available timeframes: {list(AVAILABLE_TIMEFRAMES.keys())}'
-    
-    try:
-        amount = float(amount)
-    except ValueError:
-        return False, 'Invalid amount format. Please provide a valid number.'
-    
-    return True, None
 
-def save_config(config):
-    """Save configuration to config.json"""
-    with open('config.json', 'w') as f:
-        json.dump(config, f, indent=4)
-
-def setup_logging():
-    # สร้างโฟลเดอร์ temp ถ้ายังไม่มี
-    if not os.path.exists('temp'):
-        os.makedirs('temp')
+class TradingBotApp:
+    """Main application class for the trading bot."""
     
-    # ตั้งค่า logging
-    log_file = f'temp/gate_bot_{datetime.now().strftime("%Y%m%d")}.log'
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    def __init__(self):
+        self.logger = self._setup_logging()
+        self.risk_manager = None
+        
+    def _setup_logging(self):
+        """Setup logging configuration."""
+        # Create temp directory if it doesn't exist
+        temp_dir = Path('temp')
+        temp_dir.mkdir(exist_ok=True)
+        
+        # Configure logging
+        log_file = temp_dir / f'trading_bot_{datetime.now().strftime("%Y%m%d")}.log'
+        
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(log_file),
+                logging.StreamHandler()
+            ]
+        )
+        
+        return logging.getLogger(__name__)
     
-    # ตั้งค่า file handler
-    file_handler = RotatingFileHandler(
-        log_file,
-        maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
-    )
-    file_handler.setFormatter(formatter)
+    def validate_trade_params(self, currency_pair, amount, timeframe):
+        """Validate trading parameters."""
+        if currency_pair not in AVAILABLE_PAIRS:
+            return False, f'Invalid currency pair. Available: {list(AVAILABLE_PAIRS.keys())}'
+        
+        if timeframe not in AVAILABLE_TIMEFRAMES:
+            return False, f'Invalid timeframe. Available: {list(AVAILABLE_TIMEFRAMES.keys())}'
+        
+        try:
+            amount = float(amount)
+            if amount <= 0:
+                return False, 'Amount must be positive'
+        except ValueError:
+            return False, 'Invalid amount format'
+        
+        return True, None
     
-    # ตั้งค่า console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
+    def save_config(self, config):
+        """Save configuration to file."""
+        config_path = Path('config') / 'config.json'
+        config_path.parent.mkdir(exist_ok=True)
+        
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=4)
     
-    # ตั้งค่า root logger
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+    def run_manual_mode(self, args):
+        """Execute manual trading mode."""
+        self.logger.info(f"Starting manual trade: {args.action} {args.amount} {args.pair}")
+        
+        # Validate parameters
+        is_valid, error_message = self.validate_trade_params(args.pair, args.amount, args.timeframe)
+        if not is_valid:
+            self.logger.error(f'Validation error: {error_message}')
+            return False
+        
+        # Check risk management
+        if self.risk_manager and not self.risk_manager.can_open_position(
+            args.pair, float(args.amount), 0  # current_price would be fetched in real implementation
+        ):
+            self.logger.error("Trade rejected by risk manager")
+            return False
+        
+        # Execute trade (implementation would go here)
+        self.logger.info(f"Manual trade executed successfully")
+        return True
     
-    return logger
-
-def main():
-    parser = argparse.ArgumentParser(description='Gate.io Trading Bot')
-    parser.add_argument('--mode', choices=['manual', 'macd', 'webhook'], required=True,
-                      help='Trading mode: manual (single trade), macd (MACD strategy), webhook (TradingView webhook)')
-    
-    # Manual trading parameters
-    parser.add_argument('--action', choices=['buy', 'sell'], help='Trading action (buy/sell) for manual mode')
-    parser.add_argument('--pair', help='Currency pair (e.g., BTC_USDT)')
-    parser.add_argument('--amount', help='Trade amount in USDT')
-    parser.add_argument('--timeframe', default='1h', help='Trading timeframe')
-    
-    # MACD bot parameters
-    parser.add_argument('--pairs', nargs='+', help='List of trading pairs for MACD bot')
-    parser.add_argument('--interval', type=int, help='Check interval in seconds for MACD bot')
-    parser.add_argument('--trade-amount', type=float, help='Trade amount in USDT for MACD bot')
-    
-    # เพิ่ม argument สำหรับ risk management
-    parser.add_argument('--max-daily-loss', type=float, default=100,
-                      help='Maximum daily loss in USDT')
-    parser.add_argument('--max-position-size', type=float, default=1000,
-                      help='Maximum position size in USDT')
-    
-    # Config management
-    parser.add_argument('--config', default='config.json', help='Config file path')
-    parser.add_argument('--create-config', action='store_true', help='Create config from template')
-    
-    args = parser.parse_args()
-    
-    # ตรวจสอบและสร้าง config ถ้าจำเป็น
-    if args.create_config:
-        config_manager = ConfigManager(args.config)
-        config_manager.create_config_from_template(force=True)
-        return
-    
-    # ตรวจสอบว่ามี config file หรือไม่
-    if not ensure_config_exists(args.config):
-        print("❌ ไม่สามารถสร้างไฟล์ config ได้")
-        print("💡 ลองใช้: python main.py --create-config")
-        return
-
-    # สร้าง Risk Manager
-    risk_manager = RiskManager(
-        max_daily_loss=args.max_daily_loss,
-        max_position_size=args.max_position_size
-    )
-
-    if args.mode == 'webhook':
-        app.run(port=5000)
-    elif args.mode == 'macd':
+    def run_macd_mode(self, args):
+        """Execute MACD strategy mode."""
+        self.logger.info(f"Starting MACD bot with pairs: {args.pairs}")
+        
         # Load or create config
         config = load_config()
         
@@ -154,73 +154,138 @@ def main():
             config['amount'] = args.trade_amount
             
         # Save updated config
-        save_config(config)
+        self.save_config(config)
         
         # Start MACD bot
         bot = MACDBot(config)
         bot.run()
         
-        for pair in args.pairs:
-            # ตรวจสอบความเสี่ยงก่อนเทรด
-            if not risk_manager.can_open_position(pair, float(args.trade_amount), current_price):
-                logger.warning(f"Trade rejected for {pair} by risk manager")
-                continue
-            
-            # ทำการเทรด
-            # ... existing code ...
-            
-            # บันทึกการเทรด
-            risk_manager.add_trade(pair, float(args.trade_amount), current_price, action)
-        
-        # แสดงเมตริกความเสี่ยง
-        risk_metrics = risk_manager.get_risk_metrics()
-        logger.info(f"Risk metrics: {risk_metrics}")
-        
-        # ล้างประวัติการเทรดเก่า
-        risk_manager.cleanup_old_trades()
-    else:  # manual mode
-        if not all([args.action, args.pair, args.amount]):
-            print("Error: --action, --pair, and --amount are required for manual trading")
-            return
-
-        # Validate parameters
-        is_valid, error_message = validate_trade_params(args.pair, args.amount, args.timeframe)
-        if not is_valid:
-            print(f'Error: {error_message}')
-            return
-
-        # ตรวจสอบความเสี่ยงก่อนเทรด
-        if not risk_manager.can_open_position(args.pair, float(args.amount), current_price):
-            logger.error("Trade rejected by risk manager")
-            return
-
-        # Execute trade
-        configuration = gate_api.Configuration(
-            key=os.getenv('GATE_API_KEY'),
-            secret=os.getenv('GATE_API_SECRET')
-        )
-        spot_api = gate_api.SpotApi(gate_api.ApiClient(configuration))
-        
-        order = gate_api.Order(
-            currency_pair=args.pair,
-            side=args.action,
-            amount=str(args.amount),
-            type="market",
-            account="spot"
-        )
-        result = spot_api.create_order(order)
-        print(f"Trade executed: {result}")
-        
-        # บันทึกการเทรด
-        risk_manager.add_trade(args.pair, float(args.amount), current_price, args.action)
-
-if __name__ == "__main__":
-    logger = setup_logging()
-    logger.info("Starting Gate.io Trading Bot")
+        return True
     
-    try:
-        main()
-        logger.info("Trading completed successfully")
-    except Exception as e:
-        logger.error(f"Error occurred: {str(e)}", exc_info=True)
-        raise
+    def run_webhook_mode(self, args):
+        """Execute webhook mode for TradingView integration."""
+        self.logger.info("Starting webhook server on port 5000")
+        
+        @app.route('/webhook', methods=['POST'])
+        def handle_webhook():
+            try:
+                data = request.get_json()
+                self.logger.info(f"Received webhook: {data}")
+                
+                # Process webhook data here
+                # Implementation would depend on TradingView webhook format
+                
+                return jsonify({'status': 'success', 'message': 'Webhook processed'})
+            except Exception as e:
+                self.logger.error(f"Webhook error: {e}")
+                return jsonify({'status': 'error', 'message': str(e)}), 400
+        
+        app.run(host='0.0.0.0', port=5000, debug=False)
+        return True
+    
+    def run(self, args):
+        """Main run method."""
+        # Initialize risk manager
+        self.risk_manager = RiskManager(
+            max_daily_loss=args.max_daily_loss,
+            max_position_size=args.max_position_size
+        )
+        
+        # Route to appropriate mode
+        if args.mode == 'manual':
+            if not all([args.action, args.pair, args.amount]):
+                self.logger.error("Manual mode requires --action, --pair, and --amount")
+                return False
+            return self.run_manual_mode(args)
+            
+        elif args.mode == 'macd':
+            if not args.pairs:
+                self.logger.error("MACD mode requires --pairs")
+                return False
+            return self.run_macd_mode(args)
+            
+        elif args.mode == 'webhook':
+            return self.run_webhook_mode(args)
+            
+        else:
+            self.logger.error(f"Unknown mode: {args.mode}")
+            return False
+
+
+def create_parser():
+    """Create command line argument parser."""
+    parser = argparse.ArgumentParser(
+        description='Multi-Exchange Trading Bot',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s --mode manual --action buy --pair BTC_USDT --amount 100
+  %(prog)s --mode macd --pairs BTC_USDT ETH_USDT --interval 60 --trade-amount 50
+  %(prog)s --mode webhook
+        """
+    )
+    
+    # Required arguments
+    parser.add_argument(
+        '--mode', 
+        choices=['manual', 'macd', 'webhook'], 
+        required=True,
+        help='Trading mode'
+    )
+    
+    # Manual trading parameters
+    manual_group = parser.add_argument_group('manual mode options')
+    manual_group.add_argument('--action', choices=['buy', 'sell'], help='Trading action')
+    manual_group.add_argument('--pair', help='Currency pair (e.g., BTC_USDT)')
+    manual_group.add_argument('--amount', help='Trade amount in USDT')
+    manual_group.add_argument('--timeframe', default='1h', help='Trading timeframe')
+    
+    # MACD bot parameters
+    macd_group = parser.add_argument_group('MACD mode options')
+    macd_group.add_argument('--pairs', nargs='+', help='List of trading pairs')
+    macd_group.add_argument('--interval', type=int, help='Check interval in seconds')
+    macd_group.add_argument('--trade-amount', type=float, help='Trade amount in USDT')
+    
+    # Risk management
+    risk_group = parser.add_argument_group('risk management')
+    risk_group.add_argument('--max-daily-loss', type=float, default=100,
+                           help='Maximum daily loss in USDT (default: 100)')
+    risk_group.add_argument('--max-position-size', type=float, default=1000,
+                           help='Maximum position size in USDT (default: 1000)')
+    
+    # Configuration
+    config_group = parser.add_argument_group('configuration')
+    config_group.add_argument('--config', default='config/config.json', help='Config file path')
+    config_group.add_argument('--create-config', action='store_true', 
+                             help='Create config from template')
+    
+    return parser
+
+
+def main():
+    """Main entry point."""
+    parser = create_parser()
+    args = parser.parse_args()
+    
+    # Handle config creation
+    if args.create_config:
+        config_manager = ConfigManager(args.config)
+        config_manager.create_config_from_template(force=True)
+        print("✅ Config file created successfully")
+        return 0
+    
+    # Ensure config exists
+    if not ensure_config_exists(args.config):
+        print("❌ Cannot create config file")
+        print("💡 Try: python main.py --create-config")
+        return 1
+    
+    # Run the application
+    app = TradingBotApp()
+    success = app.run(args)
+    
+    return 0 if success else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

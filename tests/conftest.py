@@ -1,353 +1,193 @@
 """
-Pytest configuration and shared fixtures
+Pytest configuration and shared fixtures for the trading bot test suite.
 """
 
-import pytest
-import json
 import os
+import sys
+import pytest
 import tempfile
-from unittest.mock import Mock, patch
+import shutil
 from pathlib import Path
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
+from unittest.mock import Mock, MagicMock
 
-# Test data fixtures
-@pytest.fixture
-def sample_config():
-    """Sample configuration for testing"""
+# Add src to Python path for testing
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# Test configuration
+pytest_plugins = []
+
+
+@pytest.fixture(scope="session")
+def test_config():
+    """Provide test configuration."""
     return {
-        "exchanges": {
-            "binance": {
-                "enabled": True,
-                "type": "cex",
-                "api_key": "test_api_key",
-                "secret": "test_secret",
-                "sandbox": True,
-                "trading_pairs": ["BTC/USDT", "ETH/USDT"],
-                "min_order_amount": 10.0,
-                "max_order_amount": 1000.0,
-                "fee_rate": 0.001
-            },
-            "gateio": {
-                "enabled": False,
-                "type": "cex",
-                "api_key": "",
-                "secret": "",
-                "sandbox": True,
-                "trading_pairs": ["BTC/USDT"],
-                "min_order_amount": 10.0,
-                "max_order_amount": 1000.0,
-                "fee_rate": 0.002
-            }
-        },
-        "trading_strategy": {
-            "strategy_type": "market_making",
-            "timeframe": "1m",
-            "indicators": ["sma", "ema", "rsi", "macd"],
-            "risk_management": {
-                "max_position_size": 0.1,
-                "stop_loss": 0.02,
-                "take_profit": 0.03,
-                "max_daily_loss": 0.05
-            }
-        },
-        "bot_settings": {
-            "check_interval": 30,
-            "log_level": "INFO",
-            "log_file": "temp/trading_bot.log",
-            "telegram_notifications": {
-                "enabled": False,
-                "bot_token": "",
-                "chat_id": ""
-            },
-            "database": {
-                "enabled": True,
-                "type": "sqlite",
-                "path": "temp/trading_data.db"
-            }
-        }
+        "api_key": "test_api_key",
+        "api_secret": "test_api_secret",
+        "trading_pairs": ["BTC_USDT", "ETH_USDT"],
+        "amount": 10.0,
+        "check_interval": 60,
+        "max_daily_loss": 100.0,
+        "max_position_size": 1000.0,
     }
 
-@pytest.fixture
-def temp_config_file(sample_config):
-    """Create a temporary config file"""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-        json.dump(sample_config, f, indent=2)
-        temp_path = f.name
-    
-    yield temp_path
-    
-    # Cleanup
-    if os.path.exists(temp_path):
-        os.unlink(temp_path)
 
 @pytest.fixture
-def temp_env_file():
-    """Create a temporary .env file"""
-    env_content = """
-BINANCE_API_KEY=test_binance_key
-BINANCE_SECRET=test_binance_secret
-GATEIO_API_KEY=test_gateio_key
-GATEIO_SECRET=test_gateio_secret
-TELEGRAM_BOT_TOKEN=test_bot_token
-TELEGRAM_CHAT_ID=test_chat_id
-"""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.env', delete=False) as f:
-        f.write(env_content)
-        temp_path = f.name
-    
-    yield temp_path
-    
-    # Cleanup
-    if os.path.exists(temp_path):
-        os.unlink(temp_path)
+def temp_dir():
+    """Create a temporary directory for tests."""
+    temp_path = tempfile.mkdtemp()
+    yield Path(temp_path)
+    shutil.rmtree(temp_path)
+
 
 @pytest.fixture
-def sample_ohlcv_data():
-    """Sample OHLCV data for testing"""
-    dates = pd.date_range(start='2024-01-01', periods=100, freq='1H')
-    np.random.seed(42)  # For reproducible tests
-    
-    # Generate realistic price data
-    base_price = 50000
-    price_changes = np.random.normal(0, 0.02, 100)
-    prices = [base_price]
-    
-    for change in price_changes[1:]:
-        new_price = prices[-1] * (1 + change)
-        prices.append(max(new_price, 1000))  # Minimum price
-    
-    data = []
-    for i, date in enumerate(dates):
-        open_price = prices[i]
-        close_price = prices[i] * (1 + np.random.normal(0, 0.01))
-        high_price = max(open_price, close_price) * (1 + abs(np.random.normal(0, 0.005)))
-        low_price = min(open_price, close_price) * (1 - abs(np.random.normal(0, 0.005)))
-        volume = np.random.uniform(100, 1000)
-        
-        data.append({
-            'timestamp': date,
-            'open': open_price,
-            'high': high_price,
-            'low': low_price,
-            'close': close_price,
-            'volume': volume
-        })
-    
-    return pd.DataFrame(data)
-
-@pytest.fixture
-def sample_balance_data():
-    """Sample balance data for testing"""
-    return {
-        'total': {
-            'USDT': 1000.0,
-            'BTC': 0.05,
-            'ETH': 1.5
-        },
-        'free': {
-            'USDT': 800.0,
-            'BTC': 0.03,
-            'ETH': 1.0
-        },
-        'used': {
-            'USDT': 200.0,
-            'BTC': 0.02,
-            'ETH': 0.5
-        }
-    }
-
-@pytest.fixture
-def sample_ticker_data():
-    """Sample ticker data for testing"""
-    return {
+def mock_exchange_api():
+    """Mock exchange API for testing."""
+    mock_api = Mock()
+    mock_api.fetch_ticker.return_value = {
         'symbol': 'BTC/USDT',
         'last': 50000.0,
-        'bid': 49950.0,
-        'ask': 50050.0,
+        'bid': 49999.0,
+        'ask': 50001.0,
         'high': 51000.0,
         'low': 49000.0,
-        'volume': 1000.0,
-        'quoteVolume': 50000000.0,
-        'percentage': 2.5,
-        'change': 1250.0,
-        'timestamp': datetime.now().timestamp() * 1000
+        'volume': 1000.0
     }
-
-@pytest.fixture
-def sample_orderbook_data():
-    """Sample orderbook data for testing"""
-    return {
-        'bids': [
-            [49950.0, 0.1],
-            [49940.0, 0.2],
-            [49930.0, 0.15],
-            [49920.0, 0.3],
-            [49910.0, 0.25]
-        ],
-        'asks': [
-            [50050.0, 0.1],
-            [50060.0, 0.2],
-            [50070.0, 0.15],
-            [50080.0, 0.3],
-            [50090.0, 0.25]
-        ],
-        'timestamp': datetime.now().timestamp() * 1000
-    }
-
-@pytest.fixture
-def mock_exchange():
-    """Mock exchange object for testing"""
-    exchange = Mock()
-    exchange.id = 'binance'
-    exchange.name = 'Binance'
-    exchange.has = {
-        'fetchTicker': True,
-        'fetchOHLCV': True,
-        'fetchBalance': True,
-        'fetchOrderBook': True,
-        'createOrder': True,
-        'cancelOrder': True,
-        'fetchOrder': True,
-        'fetchOrders': True,
-        'fetchOpenOrders': True
-    }
-    return exchange
-
-@pytest.fixture
-def mock_ccxt_exchange(mock_exchange, sample_ticker_data, sample_ohlcv_data, 
-                      sample_balance_data, sample_orderbook_data):
-    """Mock CCXT exchange with realistic responses"""
-    
-    # Convert DataFrame to CCXT OHLCV format
-    ohlcv_data = []
-    for _, row in sample_ohlcv_data.iterrows():
-        ohlcv_data.append([
-            int(row['timestamp'].timestamp() * 1000),
-            row['open'],
-            row['high'],
-            row['low'],
-            row['close'],
-            row['volume']
-        ])
-    
-    mock_exchange.fetch_ticker.return_value = sample_ticker_data
-    mock_exchange.fetch_ohlcv.return_value = ohlcv_data
-    mock_exchange.fetch_balance.return_value = sample_balance_data
-    mock_exchange.fetch_order_book.return_value = sample_orderbook_data
-    mock_exchange.create_order.return_value = {
+    mock_api.fetch_ohlcv.return_value = [
+        [1640995200000, 49000, 51000, 48000, 50000, 1000],  # Sample OHLCV data
+        [1640998800000, 50000, 52000, 49500, 51000, 1100],
+        [1641002400000, 51000, 51500, 50000, 50500, 950],
+    ]
+    mock_api.create_market_buy_order.return_value = {
         'id': 'test_order_123',
         'symbol': 'BTC/USDT',
-        'type': 'limit',
         'side': 'buy',
-        'amount': 0.01,
-        'price': 50000.0,
-        'status': 'open',
-        'timestamp': datetime.now().timestamp() * 1000
+        'amount': 0.001,
+        'price': 50000,
+        'status': 'closed'
     }
-    
-    return mock_exchange
+    return mock_api
+
 
 @pytest.fixture
-def temp_directory():
-    """Create a temporary directory for testing"""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield temp_dir
+def mock_risk_manager():
+    """Mock risk manager for testing."""
+    mock_rm = Mock()
+    mock_rm.can_open_position.return_value = True
+    mock_rm.get_risk_metrics.return_value = {
+        'daily_pnl': 0.0,
+        'total_positions': 0,
+        'risk_score': 0.1
+    }
+    return mock_rm
+
 
 @pytest.fixture
-def sample_macd_signal():
-    """Sample MACD signal data for testing"""
+def mock_logger():
+    """Mock logger for testing."""
+    return Mock()
+
+
+@pytest.fixture
+def sample_market_data():
+    """Provide sample market data for testing."""
     return {
-        'exchange': 'binance',
-        'symbol': 'BTC/USDT',
-        'timeframe': '1h',
-        'signal_type': 'long',
-        'price': 50000.0,
-        'macd_value': 0.0015,
-        'macd_signal': 0.0010,
-        'macd_histogram': 0.0005,
-        'strength': 75.5,
-        'timestamp': datetime.now(),
-        'volume_24h': 1000000.0
+        'prices': [49000, 49500, 50000, 50500, 51000, 50800, 50200, 49800],
+        'volumes': [100, 120, 150, 130, 110, 140, 160, 125],
+        'timestamps': [
+            1640995200, 1640998800, 1641002400, 1641006000,
+            1641009600, 1641013200, 1641016800, 1641020400
+        ]
     }
 
-@pytest.fixture
-def sample_market_analysis():
-    """Sample market analysis data for testing"""
-    return {
-        'exchange': 'binance',
-        'symbol': 'BTC/USDT',
-        'current_price': 50000.0,
-        'price_change_24h': 2.5,
-        'volatility': 3.2,
-        'trend': 'bullish',
-        'momentum': 'neutral',
-        'rsi': 65.2,
-        'market_condition': 'bullish_momentum',
-        'recommended_config': {
-            'bid_spread': 0.002,
-            'ask_spread': 0.0025,
-            'stop_loss': 0.015,
-            'expected_profit': 0.0025
-        },
-        'timestamp': datetime.now()
-    }
-
-# Mock patches for external dependencies
-@pytest.fixture
-def mock_ccxt():
-    """Mock CCXT library"""
-    with patch('ccxt.binance') as mock_binance, \
-         patch('ccxt.gateio') as mock_gateio:
-        yield {
-            'binance': mock_binance,
-            'gateio': mock_gateio
-        }
 
 @pytest.fixture
-def mock_web3():
-    """Mock Web3 library for DEX testing"""
-    with patch('web3.Web3') as mock_web3:
-        mock_web3.isConnected.return_value = True
-        mock_web3.eth.account.from_key.return_value.address = '0x1234567890123456789012345678901234567890'
-        yield mock_web3
+def mock_mqtt_client():
+    """Mock MQTT client for testing."""
+    mock_client = Mock()
+    mock_client.connect.return_value = 0
+    mock_client.publish.return_value = MagicMock()
+    mock_client.subscribe.return_value = (0, 1)
+    return mock_client
 
-@pytest.fixture
-def mock_telegram():
-    """Mock Telegram bot"""
-    with patch('telegram.Bot') as mock_bot:
-        mock_bot.send_message.return_value = True
-        yield mock_bot
 
-# Environment setup
 @pytest.fixture(autouse=True)
 def setup_test_environment(monkeypatch):
-    """Setup test environment variables"""
-    test_env = {
-        'BINANCE_API_KEY': 'test_binance_key',
-        'BINANCE_SECRET': 'test_binance_secret',
-        'GATEIO_API_KEY': 'test_gateio_key',
-        'GATEIO_SECRET': 'test_gateio_secret',
-        'TELEGRAM_BOT_TOKEN': 'test_bot_token',
-        'TELEGRAM_CHAT_ID': 'test_chat_id'
+    """Setup test environment variables."""
+    test_env_vars = {
+        'GATE_API_KEY': 'test_api_key',
+        'GATE_API_SECRET': 'test_api_secret',
+        'TELEGRAM_BOT_TOKEN': 'test_telegram_token',
+        'TELEGRAM_CHAT_ID': 'test_chat_id',
+        'DISCORD_WEBHOOK_URL': 'https://discord.com/api/webhooks/test',
+        'DEBUG': '1',
     }
     
-    for key, value in test_env.items():
+    for key, value in test_env_vars.items():
         monkeypatch.setenv(key, value)
 
-# Cleanup fixtures
-@pytest.fixture(autouse=True)
-def cleanup_temp_files():
-    """Cleanup temporary files after tests"""
-    yield
+
+@pytest.fixture
+def mock_config_file(temp_dir):
+    """Create a mock configuration file."""
+    config_content = {
+        "trading_pairs": ["BTC_USDT", "ETH_USDT"],
+        "amount": 10.0,
+        "check_interval": 60,
+        "macd_fast": 12,
+        "macd_slow": 26,
+        "macd_signal": 9,
+        "risk_management": {
+            "max_daily_loss": 100.0,
+            "max_position_size": 1000.0,
+            "stop_loss_percentage": 0.05
+        }
+    }
     
-    # Clean up any temp files that might have been created
-    temp_patterns = ['temp_*.json', 'test_*.db', 'test_*.log']
-    for pattern in temp_patterns:
-        import glob
-        for file in glob.glob(pattern):
-            try:
-                os.unlink(file)
-            except:
-                pass 
+    import json
+    config_path = temp_dir / "test_config.json"
+    with open(config_path, 'w') as f:
+        json.dump(config_content, f, indent=2)
+    
+    return config_path
+
+
+# Pytest markers
+def pytest_configure(config):
+    """Configure pytest markers."""
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+    )
+    config.addinivalue_line(
+        "markers", "integration: marks tests as integration tests"
+    )
+    config.addinivalue_line(
+        "markers", "unit: marks tests as unit tests"
+    )
+    config.addinivalue_line(
+        "markers", "security: marks tests as security tests"
+    )
+    config.addinivalue_line(
+        "markers", "performance: marks tests as performance tests"
+    )
+
+
+# Test collection customization
+def pytest_collection_modifyitems(config, items):
+    """Modify test collection to add markers automatically."""
+    for item in items:
+        # Add unit marker to unit tests
+        if "unit" in str(item.fspath):
+            item.add_marker(pytest.mark.unit)
+        
+        # Add integration marker to integration tests
+        elif "integration" in str(item.fspath):
+            item.add_marker(pytest.mark.integration)
+        
+        # Add performance marker to performance tests
+        elif "performance" in str(item.fspath):
+            item.add_marker(pytest.mark.performance)
+            item.add_marker(pytest.mark.slow)
+        
+        # Add security marker to security tests
+        elif "security" in str(item.fspath):
+            item.add_marker(pytest.mark.security) 

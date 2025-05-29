@@ -1,0 +1,294 @@
+{
+  "_comment": "Hummingbot MQTT Manager Configuration Template",
+  "_description": "Copy this file to your own config and update the values according to your setup",
+  "_version": "1.0.0",
+
+  "mqtt": {
+    "_description": "MQTT Broker connection settings",
+    "host": "localhost",
+    "port": 1883,
+    "username": null,
+    "password": null,
+    "_comment_auth": "Set username/password if your MQTT broker requires authentication",
+    "keepalive": 60,
+    "qos": 1,
+    "_comment_qos": "Quality of Service: 0=at most once, 1=at least once, 2=exactly once"
+  },
+
+  "hummingbot": {
+    "_description": "Hummingbot installation paths and settings",
+    "path": "/opt/hummingbot",
+    "_comment_path": "Update this to your Hummingbot installation directory",
+    "config_path": "/opt/hummingbot/conf",
+    "logs_path": "/opt/hummingbot/logs",
+    "strategies_path": "/opt/hummingbot/conf/strategies",
+    "_comment_paths": "These paths are relative to the main Hummingbot path above",
+
+    "default_strategy_configs": {
+      "_description": "Default configurations for different strategy types",
+
+      "pure_market_making": {
+        "_description": "Market making strategy on a single exchange",
+        "bid_spread": 0.001,
+        "ask_spread": 0.001,
+        "_comment_spreads": "Spread as decimal (0.001 = 0.1%)",
+        "order_amount": 10.0,
+        "_comment_amount": "Order size in base currency",
+        "inventory_skew_enabled": true,
+        "filled_order_delay": 60.0,
+        "order_refresh_time": 30.0,
+        "max_order_age": 1800.0,
+        "order_refresh_tolerance_pct": 0.002,
+        "inventory_target_base_pct": 50.0,
+        "inventory_range_multiplier": 50.0,
+        "hanging_orders_enabled": false,
+        "hanging_orders_cancel_pct": 10.0,
+        "order_optimization_enabled": false,
+        "ask_order_optimization_depth": 0,
+        "bid_order_optimization_depth": 0,
+        "add_transaction_costs": false,
+        "price_ceiling": -1,
+        "price_floor": -1,
+        "ping_pong_enabled": false
+      },
+
+      "cross_exchange_market_making": {
+        "_description": "Market making between two exchanges",
+        "maker_market": "binance",
+        "taker_market": "kucoin",
+        "_comment_markets": "Update these to your preferred exchanges",
+        "maker_market_trading_pair": "BTC-USDT",
+        "taker_market_trading_pair": "BTC-USDT",
+        "order_amount": 0.01,
+        "min_profitability": 0.003,
+        "_comment_profitability": "Minimum profit margin (0.003 = 0.3%)",
+        "order_size_taker_volume_factor": 25.0,
+        "order_size_taker_balance_factor": 99.5,
+        "order_size_portfolio_ratio_limit": 16.67,
+        "adjust_order_enabled": true,
+        "active_order_canceling": true,
+        "cancel_order_threshold": 5.0,
+        "limit_order_min_expiration": 130.0,
+        "top_depth_tolerance": 0.0,
+        "anti_hysteresis_duration": 60.0,
+        "order_size_override": null,
+        "use_oracle_conversion_rate": false,
+        "taker_to_maker_base_conversion_rate": 1.0,
+        "taker_to_maker_quote_conversion_rate": 1.0,
+        "slippage_buffer": 0.05
+      },
+
+      "arbitrage": {
+        "_description": "Arbitrage strategy between two exchanges",
+        "primary_market": "binance",
+        "secondary_market": "kucoin",
+        "_comment_markets": "Choose exchanges with good liquidity",
+        "primary_market_trading_pair": "BTC-USDT",
+        "secondary_market_trading_pair": "BTC-USDT",
+        "min_profitability": 0.003,
+        "_comment_min_profit": "Minimum profit after fees (0.003 = 0.3%)",
+        "order_amount": 0.01,
+        "market_1_slippage_buffer": 0.05,
+        "market_2_slippage_buffer": 0.05,
+        "concurrent_orders_submission": false,
+        "debug_price_shim": false,
+        "gateway_transaction_cancel_interval": 600.0,
+        "use_oracle_conversion_rate": false,
+        "secondary_to_primary_base_conversion_rate": 1.0,
+        "secondary_to_primary_quote_conversion_rate": 1.0
+      },
+
+      "avellaneda_market_making": {
+        "_description": "Advanced market making with dynamic pricing",
+        "order_amount": 10.0,
+        "order_optimization_enabled": false,
+        "order_refresh_time": 30.0,
+        "max_order_age": 1800.0,
+        "inventory_target_base_pct": 50.0,
+        "add_transaction_costs": false,
+        "volatility_buffer_size": 200,
+        "trading_intensity_buffer_size": 200,
+        "order_override": {},
+        "hanging_orders_enabled": false,
+        "hanging_orders_cancel_pct": 10.0,
+        "should_wait_order_cancel_confirmation": true,
+        "order_refresh_tolerance_pct": 0.002,
+        "filled_order_delay": 60.0,
+        "price_ceiling": -1,
+        "price_floor": -1,
+        "ping_pong_enabled": false,
+        "debug_csv_path": "",
+        "is_debug": false
+      },
+
+      "liquidity_mining": {
+        "_description": "Liquidity mining strategy for multiple markets",
+        "exchange": "binance",
+        "_comment_exchange": "Exchange that supports liquidity mining",
+        "markets": {
+          "BTC-USDT": 1.0,
+          "ETH-USDT": 1.0,
+          "_comment": "Market weights (higher = more allocation)"
+        },
+        "token": "USDT",
+        "_comment_token": "Quote token for all markets",
+        "order_amount": 10.0,
+        "spread": 0.008,
+        "_comment_spread": "Spread for all markets (0.008 = 0.8%)",
+        "inventory_skew_enabled": false,
+        "target_base_pct": 50.0,
+        "order_refresh_time": 10.0,
+        "order_refresh_tolerance_pct": 0.002,
+        "inventory_range_multiplier": 50.0,
+        "volatility_interval": 300,
+        "avg_volatility_period": 10,
+        "volatility_to_spread_multiplier": 1.0,
+        "max_spread": 0.05,
+        "max_order_age": 1800.0
+      }
+    }
+  },
+
+  "exchanges": {
+    "_description": "Exchange API configurations - ADD YOUR API KEYS HERE",
+    "_security_warning": "NEVER commit real API keys to version control!",
+
+    "binance": {
+      "enabled": true,
+      "api_key": "YOUR_BINANCE_API_KEY",
+      "api_secret": "YOUR_BINANCE_API_SECRET",
+      "testnet": true,
+      "_comment": "Set testnet=false for live trading"
+    },
+
+    "kucoin": {
+      "enabled": false,
+      "api_key": "YOUR_KUCOIN_API_KEY",
+      "api_secret": "YOUR_KUCOIN_API_SECRET",
+      "passphrase": "YOUR_KUCOIN_PASSPHRASE",
+      "testnet": false,
+      "_comment": "KuCoin requires a passphrase"
+    },
+
+    "gate_io": {
+      "enabled": false,
+      "api_key": "YOUR_GATEIO_API_KEY",
+      "api_secret": "YOUR_GATEIO_API_SECRET",
+      "testnet": false
+    },
+
+    "huobi": {
+      "enabled": false,
+      "api_key": "YOUR_HUOBI_API_KEY",
+      "api_secret": "YOUR_HUOBI_API_SECRET",
+      "testnet": false
+    },
+
+    "_comment_add_more": "You can add more exchanges here following the same pattern"
+  },
+
+  "logging": {
+    "_description": "Logging configuration",
+    "level": "INFO",
+    "_comment_level": "Options: DEBUG, INFO, WARNING, ERROR, CRITICAL",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file_enabled": true,
+    "file_path": "logs/hummingbot_mqtt.log",
+    "_comment_path": "Relative to project root or absolute path",
+    "max_file_size": "10MB",
+    "backup_count": 5,
+    "_comment_rotation": "Log rotation settings"
+  },
+
+  "monitoring": {
+    "_description": "System monitoring and notification settings",
+    "heartbeat_interval": 30,
+    "_comment_heartbeat": "Heartbeat signal interval in seconds",
+    "status_update_interval": 60,
+    "_comment_status": "Status update interval in seconds",
+    "performance_update_interval": 300,
+    "_comment_performance": "Performance update interval in seconds",
+    "log_monitoring_enabled": true,
+    "error_notification_enabled": true,
+
+    "telegram_notifications": {
+      "_description": "Telegram bot notifications (optional)",
+      "enabled": false,
+      "bot_token": "YOUR_TELEGRAM_BOT_TOKEN",
+      "chat_id": "YOUR_TELEGRAM_CHAT_ID",
+      "_comment": "Get bot token from @BotFather, chat_id from @userinfobot"
+    },
+
+    "discord_notifications": {
+      "_description": "Discord webhook notifications (optional)",
+      "enabled": false,
+      "webhook_url": "YOUR_DISCORD_WEBHOOK_URL",
+      "_comment": "Create webhook in Discord server settings"
+    }
+  },
+
+  "security": {
+    "_description": "Security and risk management settings",
+    "max_concurrent_strategies": 10,
+    "_comment_concurrent": "Maximum number of strategies running simultaneously",
+    "max_order_amount": 1000.0,
+    "_comment_max_order": "Maximum order size in quote currency",
+    "daily_loss_limit": 0.05,
+    "_comment_loss_limit": "Daily loss limit as percentage (0.05 = 5%)",
+    "strategy_timeout": 3600,
+    "_comment_timeout": "Strategy timeout in seconds",
+
+    "allowed_commands": [
+      "create_strategy",
+      "start_strategy",
+      "stop_strategy",
+      "pause_strategy",
+      "resume_strategy",
+      "delete_strategy",
+      "get_strategies",
+      "get_strategy_status",
+      "update_strategy_config",
+      "get_performance",
+      "get_logs"
+    ],
+    "_comment_allowed": "Commands that can be executed via MQTT",
+
+    "restricted_commands": ["restart_hummingbot"],
+    "_comment_restricted": "Commands that require special permissions"
+  },
+
+  "database": {
+    "_description": "Database settings for storing strategy data (optional)",
+    "enabled": false,
+    "_comment_enabled": "Set to true to enable database storage",
+    "type": "sqlite",
+    "_comment_type": "Database type: sqlite, postgresql, mysql",
+    "path": "data/hummingbot_mqtt.db",
+    "_comment_path": "For SQLite: file path. For others: connection string",
+    "backup_enabled": true,
+    "backup_interval": 3600,
+    "_comment_backup": "Backup interval in seconds"
+  },
+
+  "_setup_instructions": {
+    "1": "Copy this file to config_hummingbot_local.json",
+    "2": "Update MQTT broker settings if not using localhost",
+    "3": "Set correct Hummingbot installation path",
+    "4": "Add your exchange API keys (NEVER commit them!)",
+    "5": "Configure notification settings if desired",
+    "6": "Adjust security settings according to your risk tolerance",
+    "7": "Test with testnet=true before live trading"
+  },
+
+  "_environment_variables": {
+    "_description": "You can also use environment variables instead of hardcoding sensitive data",
+    "_examples": {
+      "BINANCE_API_KEY": "Your Binance API key",
+      "BINANCE_API_SECRET": "Your Binance API secret",
+      "MQTT_USERNAME": "MQTT broker username",
+      "MQTT_PASSWORD": "MQTT broker password",
+      "TELEGRAM_BOT_TOKEN": "Telegram bot token",
+      "TELEGRAM_CHAT_ID": "Telegram chat ID"
+    }
+  }
+}
